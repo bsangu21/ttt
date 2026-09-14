@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>탄막 게임 - 패링 보너스 점수</title>
+    <title>탄막 게임 - 패링 콤보 스택</title>
     <style>
         body { display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #1a1a1a; margin: 0; }
         canvas { background-color: #0d0d0d; border: 2px solid #fff; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
@@ -18,7 +18,7 @@
 
     let player = { x: 200, y: 450, radius: 8, speed: 5 };
     let bullets = [];
-    let scorePopups = []; // 패링 점수 이펙트용 배열
+    let scorePopups = [];
     let score = 0;
     let isGameOver = false;
     let keys = {};
@@ -28,9 +28,12 @@
         cooldown: false,
         radius: 20,
         duration: 7,
-        cooldownTime: 100,
+        cooldownTime: 70, // 콤보 유지를 위해 쿨다운 살짝 단축
         timer: 0,
-        cdTimer: 0
+        cdTimer: 0,
+        combo: 0,
+        comboTimer: 0,
+        maxComboTimer: 210 // 콤보 제한시간 (약 3.5초)
     };
 
     window.addEventListener("keydown", e => {
@@ -70,6 +73,8 @@
         parry.cooldown = false;
         parry.timer = 0;
         parry.cdTimer = 0;
+        parry.combo = 0;
+        parry.comboTimer = 0;
         update();
     }
 
@@ -87,6 +92,14 @@
             if (parry.cdTimer <= 0) parry.cooldown = false;
         }
 
+        // 콤보 제한시간 카운트다운
+        if (parry.comboTimer > 0) {
+            parry.comboTimer--;
+            if (parry.comboTimer <= 0) {
+                parry.combo = 0; // 제한시간 초과 시 스택 리셋
+            }
+        }
+
         if ((keys["ArrowLeft"] || keys["a"]) && player.x > player.radius) player.x -= player.speed;
         if ((keys["ArrowRight"] || keys["d"]) && player.x < canvas.width - player.radius) player.x += player.speed;
         if ((keys["ArrowUp"] || keys["w"]) && player.y > player.radius) player.y -= player.speed;
@@ -100,14 +113,22 @@
             let dy = player.y - b.y;
             let dist = Math.sqrt(dx * dx + dy * dy);
 
-            // 패링 성공: 총알 제거 + 보너스 800점 + 텍스트 이펙트
+            // 패링 성공 시 스택 추가 및 점수 계산
             if (parry.active && dist < parry.radius + b.radius) {
                 bullets.splice(i, 1);
-                score += 800;
+
+                if (parry.combo < 5) {
+                    parry.combo++; // 최대 5스택까지 증가
+                }
+                parry.comboTimer = parry.maxComboTimer; // 제한시간 리셋
+
+                let pts = 200 * parry.combo; // 스택당 200점씩 추가
+                score += pts;
+
                 scorePopups.push({
                     x: b.x,
                     y: b.y,
-                    text: "+800 PARRY!",
+                    text: `+${pts} (${parry.combo} STACK!)`,
                     life: 30
                 });
                 continue;
@@ -120,7 +141,6 @@
 
         bullets = bullets.filter(b => b.y < canvas.height);
 
-        // 점수 이펙트 위치 업데이트
         for (let i = scorePopups.length - 1; i >= 0; i--) {
             scorePopups[i].y -= 1;
             scorePopups[i].life--;
@@ -160,14 +180,14 @@
             ctx.fill();
         });
 
-        // 패링 점수 이펙트 그리기
+        // 점수 팝업 이펙트
         scorePopups.forEach(p => {
             ctx.fillStyle = "#ffff00";
             ctx.font = "bold 13px sans-serif";
-            ctx.fillText(p.text, p.x - 25, p.y);
+            ctx.fillText(p.text, p.x - 30, p.y);
         });
 
-        // 점수 및 상태 UI
+        // UI 표시
         ctx.fillStyle = "#ffffff";
         ctx.font = "16px monospace";
         ctx.fillText("SCORE: " + score, 15, 30);
@@ -178,6 +198,17 @@
         } else {
             ctx.fillStyle = "#00ffcc";
             ctx.fillText("PARRY: READY (Shift/Z)", 15, 55);
+        }
+
+        // 콤보 스택 UI 및 제한시간 게이지
+        if (parry.combo > 0) {
+            ctx.fillStyle = "#ff00ff";
+            ctx.font = "bold 14px monospace";
+            ctx.fillText(`COMBO: ${parry.combo}/5 STACK`, 15, 80);
+
+            let barWidth = (parry.comboTimer / parry.maxComboTimer) * 100;
+            ctx.fillStyle = "#ff00ff";
+            ctx.fillRect(15, 88, barWidth, 4);
         }
     }
 
