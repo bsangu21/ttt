@@ -26,9 +26,9 @@
     let parry = {
         active: false,
         cooldown: false,
-        radius: 35,
-        duration: 15,
-        cooldownTime: 90,
+        radius: 20,
+        duration: 7,
+        cooldownTime: 100,
         timer: 0,
         cdTimer: 0
     };
@@ -100,14 +100,14 @@
             let dy = player.y - b.y;
             let dist = Math.sqrt(dx * dx + dy * dy);
 
-            // 패링 성공: 총알 제거 + 보너스 200점 + 텍스트 이펙트
+            // 패링 성공: 총알 제거 + 보너스 800점 + 텍스트 이펙트
             if (parry.active && dist < parry.radius + b.radius) {
                 bullets.splice(i, 1);
-                score += 200;
+                score += 800;
                 scorePopups.push({
                     x: b.x,
                     y: b.y,
-                    text: "+200 PARRY!",
+                    text: "+800 PARRY!",
                     life: 30
                 });
                 continue;
