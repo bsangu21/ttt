@@ -2,56 +2,82 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>탄막 게임 - 0.3.1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>탄막 게임 - 0.3.2</title>
     <style>
-        body { display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #1a1a1a; margin: 0; }
-        canvas { background-color: #0d0d0d; border: 2px solid #fff; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #1a1a1a;
+            margin: 0;
+        }
+        canvas {
+            background-color: #0d0d0d;
+            border: 2px solid #fff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+        }
     </style>
 </head>
 <body>
-
 <canvas id="gameCanvas" width="400" height="500"></canvas>
-
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-
-    let player = { x: 200, y: 450, radius: 8, speed: 5 };
+    let player = {
+        x: 200,
+        y: 450,
+        radius: 8,
+        speed: 5
+    };
     let bullets = [];
     let scorePopups = [];
     let score = 0;
     let isGameOver = false;
     let keys = {};
-
     let parry = {
         active: false,
         cooldown: false,
+        rewarded: false, // 현재 패링 중 보상을 이미 받았는지 여부
         radius: 20,
         duration: 7,
-        cooldownTime: 70, // 콤보 유지를 위해 쿨다운 살짝 단축
+        cooldownTime: 70,
         timer: 0,
         cdTimer: 0,
         combo: 0,
         comboTimer: 0,
-        maxComboTimer: 210 // 콤보 제한시간 (약 3.5초)
+        maxComboTimer: 210
     };
-
-    window.addEventListener("keydown", e => {
+    // 키를 눌렀을 때
+    window.addEventListener("keydown", function (e) {
         keys[e.key] = true;
-        if (isGameOver && e.key === " ") resetGame();
-        if ((e.key === "Shift" || e.key === "z" || e.key === "Z") && !parry.cooldown && !isGameOver) {
+        // 게임 오버 상태에서 스페이스바를 누르면 재시작
+        if (isGameOver && e.key === " ") {
+            resetGame();
+        }
+        // Shift 또는 Z 키로 패링
+        if (
+            (e.key === "Shift" || e.key === "z" || e.key === "Z") &&
+            !parry.cooldown &&
+            !isGameOver
+        ) {
             activateParry();
         }
     });
-    window.addEventListener("keyup", e => keys[e.key] = false);
-
+    // 키를 뗐을 때
+    window.addEventListener("keyup", function (e) {
+        keys[e.key] = false;
+    });
+    // 패링 활성화
     function activateParry() {
         parry.active = true;
         parry.cooldown = true;
+        parry.rewarded = false; // 새 패링이 시작되므로 보상 가능 상태로 초기화
         parry.timer = parry.duration;
         parry.cdTimer = parry.cooldownTime;
     }
-
+    // 탄막 생성
     function spawnBullet() {
         if (isGameOver) return;
         bullets.push({
@@ -61,7 +87,7 @@
             speed: 3 + Math.random() * 4
         });
     }
-
+    // 게임 재시작
     function resetGame() {
         player.x = 200;
         player.y = 450;
@@ -71,90 +97,107 @@
         isGameOver = false;
         parry.active = false;
         parry.cooldown = false;
+        parry.rewarded = false;
         parry.timer = 0;
         parry.cdTimer = 0;
         parry.combo = 0;
         parry.comboTimer = 0;
         update();
     }
-
+    // 게임 업데이트
     function update() {
         if (isGameOver) return;
-
         score++;
-
+        // 패링 지속시간 처리
         if (parry.active) {
             parry.timer--;
-            if (parry.timer <= 0) parry.active = false;
+            if (parry.timer <= 0) {
+                parry.active = false;
+            }
         }
+        // 패링 쿨다운 처리
         if (parry.cooldown) {
             parry.cdTimer--;
-            if (parry.cdTimer <= 0) parry.cooldown = false;
+            if (parry.cdTimer <= 0) {
+                parry.cooldown = false;
+            }
         }
-
-        // 콤보 제한시간 카운트다운
+        // 콤보 제한시간 처리
         if (parry.comboTimer > 0) {
             parry.comboTimer--;
             if (parry.comboTimer <= 0) {
-                parry.combo = 0; // 제한시간 초과 시 스택 리셋
+                parry.combo = 0;
             }
         }
-
-        if ((keys["ArrowLeft"] || keys["a"]) && player.x > player.radius) player.x -= player.speed;
-        if ((keys["ArrowRight"] || keys["d"]) && player.x < canvas.width - player.radius) player.x += player.speed;
-        if ((keys["ArrowUp"] || keys["w"]) && player.y > player.radius) player.y -= player.speed;
-        if ((keys["ArrowDown"] || keys["s"]) && player.y < canvas.height - player.radius) player.y += player.speed;
-
+        // 플레이어 이동
+        if ((keys["ArrowLeft"] || keys["a"]) && player.x > player.radius) {
+            player.x -= player.speed;
+        }
+        if ((keys["ArrowRight"] || keys["d"]) && player.x < canvas.width - player.radius) {
+            player.x += player.speed;
+        }
+        if ((keys["ArrowUp"] || keys["w"]) && player.y > player.radius) {
+            player.y -= player.speed;
+        }
+        if ((keys["ArrowDown"] || keys["s"]) && player.y < canvas.height - player.radius) {
+            player.y += player.speed;
+        }
+        // 탄막 이동 및 충돌 검사
         for (let i = bullets.length - 1; i >= 0; i--) {
-            let b = bullets[i];
-            b.y += b.speed;
-
-            let dx = player.x - b.x;
-            let dy = player.y - b.y;
-            let dist = Math.sqrt(dx * dx + dy * dy);
-
-            // 패링 성공 시 스택 추가 및 점수 계산
-            if (parry.active && dist < parry.radius + b.radius) {
+            const bullet = bullets[i];
+            bullet.y += bullet.speed;
+            const dx = player.x - bullet.x;
+            const dy = player.y - bullet.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            // 패링 성공
+            if (parry.active && distance < parry.radius + bullet.radius) {
+                // 패링에 맞은 탄은 제거
                 bullets.splice(i, 1);
-
-                if (parry.combo < 5) {
-                    parry.combo++; // 최대 5스택까지 증가
+                // 중요: 한 번의 패링 중 보상은 단 한 번만 지급
+                if (!parry.rewarded) {
+                    parry.rewarded = true;
+                    if (parry.combo < 5) {
+                        parry.combo++;
+                    }
+                    parry.comboTimer = parry.maxComboTimer;
+                    const points = 200 * parry.combo;
+                    score += points;
+                    scorePopups.push({
+                        x: bullet.x,
+                        y: bullet.y,
+                        text: `+${points} (${parry.combo} STACK!)`,
+                        life: 30
+                    });
                 }
-                parry.comboTimer = parry.maxComboTimer; // 제한시간 리셋
-
-                let pts = 200 * parry.combo; // 스택당 200점씩 추가
-                score += pts;
-
-                scorePopups.push({
-                    x: b.x,
-                    y: b.y,
-                    text: `+${pts} (${parry.combo} STACK!)`,
-                    life: 30
-                });
                 continue;
             }
-
-            if (dist < player.radius + b.radius) {
+            // 패링하지 못하고 플레이어와 충돌
+            if (distance < player.radius + bullet.radius) {
                 isGameOver = true;
             }
         }
-
-        bullets = bullets.filter(b => b.y < canvas.height);
-
+        // 화면 아래로 지나간 탄 제거
+        bullets = bullets.filter(function (bullet) {
+            return bullet.y < canvas.height;
+        });
+        // 점수 팝업 처리
         for (let i = scorePopups.length - 1; i >= 0; i--) {
             scorePopups[i].y -= 1;
             scorePopups[i].life--;
-            if (scorePopups[i].life <= 0) scorePopups.splice(i, 1);
+            if (scorePopups[i].life <= 0) {
+                scorePopups.splice(i, 1);
+            }
         }
-
         draw();
-        if (!isGameOver) requestAnimationFrame(update);
-        else drawGameOver();
+        if (!isGameOver) {
+            requestAnimationFrame(update);
+        } else {
+            drawGameOver();
+        }
     }
-
+    // 게임 화면 그리기
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
         // 패링 쉴드
         if (parry.active) {
             ctx.beginPath();
@@ -165,33 +208,29 @@
             ctx.lineWidth = 2;
             ctx.stroke();
         }
-
         // 플레이어
         ctx.beginPath();
         ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
         ctx.fillStyle = "#00ffff";
         ctx.fill();
-
         // 탄막
         ctx.fillStyle = "#ff4444";
-        bullets.forEach(b => {
+        bullets.forEach(function (bullet) {
             ctx.beginPath();
-            ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+            ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
             ctx.fill();
         });
-
-        // 점수 팝업 이펙트
-        scorePopups.forEach(p => {
+        // 점수 팝업
+        scorePopups.forEach(function (popup) {
             ctx.fillStyle = "#ffff00";
             ctx.font = "bold 13px sans-serif";
-            ctx.fillText(p.text, p.x - 30, p.y);
+            ctx.fillText(popup.text, popup.x - 30, popup.y);
         });
-
-        // UI 표시
+        // 점수 UI
         ctx.fillStyle = "#ffffff";
         ctx.font = "16px monospace";
         ctx.fillText("SCORE: " + score, 15, 30);
-
+        // 패링 상태 UI
         if (parry.cooldown) {
             ctx.fillStyle = "#ff6666";
             ctx.fillText("PARRY: RECHARGING...", 15, 55);
@@ -199,39 +238,35 @@
             ctx.fillStyle = "#00ffcc";
             ctx.fillText("PARRY: READY (Shift/Z)", 15, 55);
         }
-
-        // 콤보 스택 UI 및 제한시간 게이지
+        // 콤보 UI
         if (parry.combo > 0) {
             ctx.fillStyle = "#ff00ff";
             ctx.font = "bold 14px monospace";
             ctx.fillText(`COMBO: ${parry.combo}/5 STACK`, 15, 80);
-
-            let barWidth = (parry.comboTimer / parry.maxComboTimer) * 100;
+            const barWidth = (parry.comboTimer / parry.maxComboTimer) * 100;
             ctx.fillStyle = "#ff00ff";
             ctx.fillRect(15, 88, barWidth, 4);
         }
     }
-
+    // 게임 오버 화면
     function drawGameOver() {
         ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
         ctx.fillStyle = "#ff4444";
         ctx.font = "bold 28px sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("GAME OVER", canvas.width / 2, 220);
-
         ctx.fillStyle = "#ffffff";
         ctx.font = "18px sans-serif";
         ctx.fillText("최종 점수: " + score, canvas.width / 2, 260);
-
         ctx.font = "14px sans-serif";
         ctx.fillStyle = "#aaa";
         ctx.fillText("스페이스바를 누르면 재시작합니다", canvas.width / 2, 300);
         ctx.textAlign = "left";
     }
-
+    // 0.1초마다 탄막 생성
     setInterval(spawnBullet, 100);
+    // 게임 시작
     update();
 </script>
 </body>
